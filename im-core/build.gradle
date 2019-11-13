@@ -1,0 +1,19 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    compileSdkVersion compile_sdk_version as int
+    defaultConfig {
+        minSdkVersion min_sdk_version as int
+        targetSdkVersion target_sdk_version as int
+        versionCode 1
+        versionName "1.0"
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'org.msgpack:msgpack:0.6.12'
+    implementation 'org.msgpack:jackson-dataformat-msgpack:0.8.17'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+}
