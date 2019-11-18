@@ -1,4 +1,6 @@
-package com.zj.im.utils.log
+@file:Suppress("unused")
+
+package com.zj.im.utils.log.logger
 
 import com.zj.im.BuildConfig
 import com.zj.im.utils.now

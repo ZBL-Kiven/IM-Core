@@ -1,6 +1,6 @@
 package com.zj.im.chat.event
 
-import android.net.NetworkInfo
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
 import com.zj.im.chat.core.DataStore
 import com.zj.im.chat.enums.SendMsgState
 import com.zj.im.chat.enums.SocketState
@@ -16,7 +16,7 @@ import com.zj.im.main.ChatBase
 import com.zj.im.sender.SendObject
 import com.zj.im.sender.SendingPool
 import com.zj.im.utils.Constance
-import com.zj.im.utils.log.e
+import com.zj.im.utils.log.logger.e
 
 /**
  * Created by ZJJ
@@ -65,7 +65,7 @@ internal object MsgEventHub {
         getClient("sendStateChange")?.setSendingState(state, callId, param, isResend)
     }
 
-    private fun networkStateChanged(netWorkState: NetworkInfo.State) {
+    private fun networkStateChanged(netWorkState: NetWorkInfo) {
         getClient("networkStateChanged")?.setNetworkState(netWorkState)
     }
 
@@ -94,7 +94,10 @@ internal object MsgEventHub {
             })
         } else {
             getClient("heartbeats")?.nextHeartBeats()
-            e("MessageHubClient.startHeartBeats", "heart-beats was not work on this time with null params")
+            e(
+                "MessageHubClient.startHeartBeats",
+                "heart-beats was not work on this time with null params"
+            )
         }
     }
 

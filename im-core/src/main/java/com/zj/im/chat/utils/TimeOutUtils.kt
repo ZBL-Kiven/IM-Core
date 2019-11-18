@@ -5,6 +5,7 @@ import com.zj.im.chat.core.DataStore
 import com.zj.im.chat.interfaces.BaseMsgInfo
 import com.zj.im.main.ChatBase
 import com.zj.im.utils.runSync
+import java.lang.Exception
 import java.util.*
 
 /**
@@ -18,12 +19,20 @@ internal object TimeOutUtils {
 
     private val sentMessages = hashMapOf<String, SentMsgInfo>()
 
+    private var resetTimerTask = true
+
     private var timer: Timer? = null
 
     fun init() {
         if (timer == null) {
             timer = Timer()
+            resetTimerTask = false
             timer?.schedule(DataTask(), 0, 1000)
+        } else {
+            if (resetTimerTask) {
+                timer = null
+                init()
+            }
         }
     }
 
@@ -36,7 +45,14 @@ internal object TimeOutUtils {
         }
     }
 
-    fun putASentMessage(callId: String, params: Map<String, Any>, timeOut: Long, isResend: Boolean, isIgnoreConnecting: Boolean = false) {
+    fun putASentMessage(
+        callId: String,
+        params: Map<String, Any>,
+        timeOut: Long,
+        isResend: Boolean,
+        isIgnoreConnecting: Boolean = false
+    ) {
+        if (resetTimerTask) init()
         sentMessages.runSync { it[callId] = SentMsgInfo(params, callId, timeOut, isResend, isIgnoreConnecting) }
     }
 
@@ -53,13 +69,36 @@ internal object TimeOutUtils {
                 }
                 if (rev.isNotEmpty()) rev.forEach { t ->
                     it.remove(t)?.let { value ->
-                        DataStore.put(BaseMsgInfo.sendingStateChange(SendMsgState.TIME_OUT, value.callId, value.params, value.isResend))
+                        DataStore.put(
+                            BaseMsgInfo.sendingStateChange(
+                                SendMsgState.TIME_OUT,
+                                value.callId,
+                                value.params,
+                                value.isResend
+                            )
+                        )
                     }
                 }
                 rev.clear()
+                if (it.isNullOrEmpty()) {
+                    resetTimerTask = true
+                    try {
+                        this@DataTask.cancel()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             }
         }
     }
 
-    private class SentMsgInfo(val params: Map<String, Any>, val callId: String, val timeOut: Long, val isResend: Boolean, val isIgnoreConnecting: Boolean, var putTime: Long = System.currentTimeMillis())
+
+    private class SentMsgInfo(
+        val params: Map<String, Any>,
+        val callId: String,
+        val timeOut: Long,
+        val isResend: Boolean,
+        val isIgnoreConnecting: Boolean,
+        var putTime: Long = System.currentTimeMillis()
+    )
 }

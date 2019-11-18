@@ -2,8 +2,9 @@ package com.zj.im.chat.core
 
 import android.app.Application
 import android.app.Notification
-import android.net.NetworkInfo
-import com.zj.im.chat.enums.IMLifecycle
+import com.zj.im.chat.enums.LifeType
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
+import com.zj.im.chat.modle.IMLifecycle
 import com.zj.im.chat.enums.RuntimeEfficiency
 import com.zj.im.chat.enums.SocketState
 import com.zj.im.chat.exceptions.ExceptionHandler
@@ -21,7 +22,7 @@ import com.zj.im.main.ChatBase.isRunningInBackground
 import com.zj.im.sender.SendObject
 import com.zj.im.sender.SendingPool
 import com.zj.im.utils.cast
-import com.zj.im.utils.log.printInFile
+import com.zj.im.utils.log.logger.printInFile
 
 /**
  * Created by ZJJ
@@ -41,9 +42,19 @@ import com.zj.im.utils.log.printInFile
  * @param buildOption made some rules to sdk , {@see OnBuildOption}
  */
 
-class BaseOption<OUT : Any> internal constructor(val context: Application, private val notification: Notification? = null, private val sessionId: Int?, private val runtimeEfficiency: RuntimeEfficiency, val logsCollectionAble: () -> Boolean, val logsFileName: String, val logsMaxRetain: Long, val buildOption: OnBuildOption<OUT>) : IMLifecycleListener, AppLayerState {
+class BaseOption<OUT : Any> internal constructor(
+    val context: Application,
+    private val notification: Notification? = null,
+    private val sessionId: Int?,
+    private val runtimeEfficiency: RuntimeEfficiency,
+    val logsCollectionAble: () -> Boolean,
+    val logsFileName: String,
+    val logsMaxRetain: Long,
+    val buildOption: OnBuildOption<OUT>
+) : IMLifecycleListener, AppLayerState {
 
     companion object {
+        @Suppress("unused")
         fun create(context: Application): OptionProxy {
             return OptionProxy(context)
         }
@@ -75,7 +86,7 @@ class BaseOption<OUT : Any> internal constructor(val context: Application, priva
 
     private var mInterface: IMInterface<OUT>? = null
     private var runningKey: String = ""
-    private var lifeType = IMLifecycle.LifeType.START
+    private var lifeType = LifeType.START
     private var curEfficiency: Long = RuntimeEfficiency.SLEEP.interval
 
     internal fun init(runningKey: String) {
@@ -92,7 +103,11 @@ class BaseOption<OUT : Any> internal constructor(val context: Application, priva
         DataStore.canAuth { return@canAuth getClient("canAuth")?.canAuth() ?: false }
         DataStore.canSend { return@canSend getClient("canSend")?.canSend() ?: false }
         DataStore.canReceive { return@canReceive getClient("canReceive")?.canReceived() ?: false }
-        DataStore.isHeartBeatsOrAuthResponse { return@isHeartBeatsOrAuthResponse getClient("isHeartBeatsOrAuthResponse")?.filterHeartBeatsOrAuthResponse(it) ?: Triple(first = false, second = false, third = null) }
+        DataStore.isHeartBeatsOrAuthResponse {
+            return@isHeartBeatsOrAuthResponse getClient("isHeartBeatsOrAuthResponse")?.filterHeartBeatsOrAuthResponse(
+                it
+            ) ?: Triple(first = false, second = false, third = null)
+        }
         initMsgHandler(runningKey)
     }
 
@@ -109,7 +124,10 @@ class BaseOption<OUT : Any> internal constructor(val context: Application, priva
     internal fun setFrequency(runtimeEfficiency: RuntimeEfficiency) {
         if (runtimeEfficiency.interval == curEfficiency) return
         curEfficiency = runtimeEfficiency.interval
-        printInFile("BaseOption.onFrequencyChanged", "the SDK work efficiency has been changed to level-${runtimeEfficiency.name}")
+        printInFile(
+            "BaseOption.onFrequencyChanged",
+            "the SDK work efficiency has been changed to level-${runtimeEfficiency.name}"
+        )
         MsgHandler.setFrequency(curEfficiency)
     }
 
@@ -140,7 +158,7 @@ class BaseOption<OUT : Any> internal constructor(val context: Application, priva
         }
     }
 
-    internal fun onNetWorkStateChanged(netWorkState: NetworkInfo.State) {
+    internal fun onNetWorkStateChanged(netWorkState: NetWorkInfo) {
         if (!isRunningInBackground) {
             checkInit("onSocketConnStateChange")
             mInterface?.netWorkStateChanged(netWorkState)
@@ -204,7 +222,10 @@ class BaseOption<OUT : Any> internal constructor(val context: Application, priva
         } else {
             arrayOf("background", "foreground")
         }
-        printInFile("BaseOption.onLayerChanged", "the device was changed layer form ${changedNames[0]} to ${changedNames[1]} ")
+        printInFile(
+            "BaseOption.onLayerChanged",
+            "the task running changed form ${changedNames[0]} to ${changedNames[1]} "
+        )
         notification?.let {
             val service = getServer("BaseOption.onLayerChanged")?.getService("onLayerChanged", true)
             if (background) {
@@ -218,7 +239,7 @@ class BaseOption<OUT : Any> internal constructor(val context: Application, priva
     }
 
     fun isRunning(): Boolean {
-        return lifeType == IMLifecycle.LifeType.RESUME
+        return lifeType == LifeType.RESUME
     }
 
     internal fun isInterrupt(): Boolean {

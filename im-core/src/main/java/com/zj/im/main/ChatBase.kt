@@ -3,24 +3,24 @@
 package com.zj.im.main
 
 import android.app.Application
-import android.net.NetworkInfo
 import com.zj.im.chat.enums.SocketState
 import com.zj.im.chat.exceptions.*
 import com.zj.im.chat.core.DataStore
 import com.zj.im.chat.interfaces.BaseMsgInfo
 import com.zj.im.chat.core.BaseOption
 import com.zj.im.chat.utils.TimeOutUtils
+import com.zj.im.chat.utils.netUtils.IConnectivityManager
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
 import com.zj.im.listeners.AppHiddenListener
 import com.zj.im.listeners.DropRecoverListener
-import com.zj.im.net.helper.NetWorkStateListener
 import com.zj.im.sender.SendingPool
 import com.zj.im.utils.ToastUtils
 import com.zj.im.utils.getIncrementKey
-import com.zj.im.utils.log.FileUtils
-import com.zj.im.utils.log.FileUtils.Companion.compressToZip
+import com.zj.im.utils.log.logger.FileUtils
+import com.zj.im.utils.log.logger.FileUtils.Companion.compressToZip
 import com.zj.im.utils.log.NetRecordUtils
-import com.zj.im.utils.log.logUtils
-import com.zj.im.utils.log.printInFile
+import com.zj.im.utils.log.logger.logUtils
+import com.zj.im.utils.log.logger.printInFile
 import java.io.File
 import java.lang.IllegalArgumentException
 
@@ -62,16 +62,23 @@ internal object ChatBase {
         options.buildOption.prepare()
     }
 
-    private fun initBase(logsCollectionAble: () -> Boolean, logsFileName: String, logsMaxRetain: Long, context: Application?) {
+    private fun initBase(
+        logsCollectionAble: () -> Boolean,
+        logsFileName: String,
+        logsMaxRetain: Long,
+        context: Application?
+    ) {
         diskPathName = logsFileName
-        logUtils.init(logsFileName, logsCollectionAble, logsMaxRetain)
-        NetRecordUtils.init(logsFileName, logsCollectionAble, logsMaxRetain)
+        logUtils.init(context, logsFileName, logsCollectionAble, logsMaxRetain)
+        NetRecordUtils.init(context, logsFileName, logsCollectionAble, logsMaxRetain)
         ToastUtils.init(context)
         TimeOutUtils.init()
     }
 
     private fun initUtils() {
-        NetWorkStateListener.init { netWorkStateChanged(it) }
+        IConnectivityManager.init(context) {
+            netWorkStateChanged(it)
+        }
         DropRecoverListener.init {
             onLayerChanged(false);isInit && (options?.isInterrupt() ?: true)
         }
@@ -82,7 +89,10 @@ internal object ChatBase {
         if (!isInit) {
             DataStore.clear()
             SendingPool.clear()
-            printInFile("ChatBase.IM.checkInit", " when $name ,the IM SDK is not init by IMInterface.class or extends class?")
+            printInFile(
+                "ChatBase.IM.checkInit",
+                " when $name ,the IM SDK is not init by IMInterface.class or extends class?"
+            )
         }
     }
 
@@ -90,7 +100,10 @@ internal object ChatBase {
         when (e) {
             is LooperInterruptedException -> {
                 if (!isFinishing(curRunningKey)) options?.initMsgHandler(curRunningKey)
-                else printInFile("ChatBase.IM.LooperInterrupted", " the MsgLooper was stopped by SDK shutDown")
+                else printInFile(
+                    "ChatBase.IM.LooperInterrupted",
+                    " the MsgLooper was stopped by SDK shutDown"
+                )
             }
             is AuthFailException -> {
                 correctConnectionState(SocketState.CONNECTED_ERROR, e.case)
@@ -124,7 +137,7 @@ internal object ChatBase {
 
     private fun onLayerChanged(isHidden: Boolean) {
         if (isHidden != isRunningInBackground) {
-            netWorkStateChanged(NetWorkStateListener.getCurNetworkStatus())
+            netWorkStateChanged(IConnectivityManager.isNetWorkActive)
             options?.onLayerChanged(isHidden)
         }
     }
@@ -134,8 +147,8 @@ internal object ChatBase {
         options?.onSocketConnStateChange(socketState)
     }
 
-    private fun netWorkStateChanged(state: NetworkInfo.State) {
-        isNetWorkAccess = state == NetworkInfo.State.CONNECTED
+    private fun netWorkStateChanged(state: NetWorkInfo) {
+        isNetWorkAccess = state == NetWorkInfo.CONNECTED
         if (!isNetWorkAccess) isTcpConnected = false
         DataStore.put(BaseMsgInfo.networkStateChanged(state))
     }
@@ -152,7 +165,7 @@ internal object ChatBase {
         printInFile("ChatBase.IM", " the SDK has begin shutdown with $runningKey")
         runningKey = ""
         options?.shutDown()
-        NetWorkStateListener.shutDown()
+        IConnectivityManager.shutDown(context)
         DropRecoverListener.destroy()
         AppHiddenListener.shutDown(context)
         isInit = false

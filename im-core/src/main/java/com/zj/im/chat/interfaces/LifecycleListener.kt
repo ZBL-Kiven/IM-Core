@@ -1,6 +1,6 @@
 package com.zj.im.chat.interfaces
 
-import com.zj.im.chat.enums.IMLifecycle
+import com.zj.im.chat.modle.IMLifecycle
 
 /**
  * Created by ZJJ

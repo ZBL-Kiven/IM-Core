@@ -1,10 +1,10 @@
 package com.zj.im.chat.interfaces
 
-import android.net.NetworkInfo
 import com.zj.im.chat.enums.SendMsgState
 import com.zj.im.chat.enums.SocketState
 import com.zj.im.chat.modle.AuthBuilder
 import com.zj.im.chat.modle.SocketConnInfo
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
 import com.zj.im.sender.SendObject
 import com.zj.im.sender.SendingUp
 
@@ -27,7 +27,7 @@ internal class BaseMsgInfo private constructor() {
 
     var connStateChange: SocketState? = null
 
-    var netWorkState: NetworkInfo.State = NetworkInfo.State.UNKNOWN
+    var netWorkState: NetWorkInfo = NetWorkInfo.UNKNOWN
 
     var sendingState: SendMsgState? = null
 
@@ -93,7 +93,7 @@ internal class BaseMsgInfo private constructor() {
             return baseInfo
         }
 
-        fun networkStateChanged(state: NetworkInfo.State): BaseMsgInfo {
+        fun networkStateChanged(state: NetWorkInfo): BaseMsgInfo {
             val baseInfo = BaseMsgInfo()
             baseInfo.netWorkState = state
             baseInfo.type = MessageHandleType.NETWORK_STATE

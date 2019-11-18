@@ -6,6 +6,7 @@ package com.zj.im.chat.enums
  * the msg sending state
  * */
 
+@Suppress("unused")
 enum class SendMsgState(val type: String) {
     NONE("NONE"), SUCCESS("SUCCESS"), FAIL("FAIL"), SENDING("SENDING"), TIME_OUT("TIME_OUT"), ON_SEND_BEFORE_END("ON_SEND_BEFORE_END");
 

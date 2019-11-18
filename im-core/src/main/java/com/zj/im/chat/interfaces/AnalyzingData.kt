@@ -5,8 +5,8 @@ import com.zj.im.chat.enums.SendMsgState
 /**
  * Created by ZJJ
  */
-
-class InterceptSendToUI {
+@Suppress("unused", "MemberVisibilityCanBePrivate")
+class AnalyzingData {
 
     internal enum class Type {
         SOURCE_SEND, SOURCE_RECEIVE, SOURCE_RESEND

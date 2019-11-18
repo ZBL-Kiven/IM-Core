@@ -8,6 +8,7 @@ import java.util.concurrent.Executors
  * Created by ZJJ
  */
 
+@Suppress("unused")
 abstract class DBListener<T, SAVER : Saver<*>?> {
 
     private var receiveExecutors: ExecutorService? = null

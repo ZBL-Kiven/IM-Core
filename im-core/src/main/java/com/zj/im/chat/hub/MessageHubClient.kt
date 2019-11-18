@@ -1,18 +1,19 @@
 package com.zj.im.chat.hub
 
-import android.net.NetworkInfo
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
 import android.os.Handler
 import android.os.Looper
-import com.zj.im.chat.enums.IMLifecycle
+import com.zj.im.chat.modle.IMLifecycle
 import com.zj.im.chat.enums.SendMsgState
 import com.zj.im.chat.enums.SocketState
 import com.zj.im.chat.exceptions.AuthFailException
 import com.zj.im.chat.exceptions.ChatException
 import com.zj.im.chat.core.DataStore
+import com.zj.im.chat.enums.LifeType
 import com.zj.im.chat.utils.MainLooper
 import com.zj.im.chat.interfaces.BaseMsgInfo
 import com.zj.im.chat.interfaces.IMLifecycleListener
-import com.zj.im.chat.interfaces.InterceptSendToUI
+import com.zj.im.chat.interfaces.AnalyzingData
 import com.zj.im.chat.modle.AuthBuilder
 import com.zj.im.chat.modle.HeartbeatsBuilder
 import com.zj.im.chat.modle.SocketConnInfo
@@ -22,7 +23,7 @@ import com.zj.im.persistence.DBListener
 import com.zj.im.sender.SendObject
 import com.zj.im.utils.Constance
 import com.zj.im.utils.log.NetRecordUtils
-import com.zj.im.utils.log.printInFile
+import com.zj.im.utils.log.logger.printInFile
 import com.zj.im.utils.nio
 import kotlin.math.max
 
@@ -52,7 +53,6 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
     open var connection = false
     open var isPause = false
     open var isReconnection = false
-    private var runningKey: String = ""
 
     private val heartBeatsTime: Int; get() = heartbeatsBuilder?.heartbeatsTime ?: DEFAULT_HEARTBEATS_TIME
     private val authTime: Long; get() = authBuilder?.authTime ?: DEFAULT_AUTH_TIME
@@ -88,21 +88,45 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
                     pingTime = System.currentTimeMillis()
                 }
                 SocketState.AUTH_SUCCESS -> {
-                    pongTime = 0L;isSending = false;authentication = false;TimeOutUtils.remove(AUTH_TIME_OUT_CALL_ID);isAuth = true;startHeartBeats();onPause(OVERRIDE_AUTH_CODE); onAuthSuccess { onResume(OVERRIDE_AUTH_CODE); if (!it) setCurState(SocketState.CONNECTED_ERROR, Constance.AUTH_INTERRUPTED) }
+                    pongTime = 0L;isSending = false;authentication =
+                        false;TimeOutUtils.remove(AUTH_TIME_OUT_CALL_ID);isAuth = true;startHeartBeats();onPause(
+                        OVERRIDE_AUTH_CODE
+                    ); onAuthSuccess {
+                        onResume(OVERRIDE_AUTH_CODE); if (!it) setCurState(
+                        SocketState.CONNECTED_ERROR,
+                        Constance.AUTH_INTERRUPTED
+                    )
+                    }
                 }
                 SocketState.SEND_AUTH -> isAuth = false
                 SocketState.CONNECTED -> {
-                    connection = false;onPause(OVERRIDE_CONNECTED_CODE);sendAuth();onConnected { if (!it) setCurState(SocketState.CONNECTED_ERROR, Constance.CONNECTING_INTERRUPTED);onResume(OVERRIDE_CONNECTED_CODE) }
+                    connection = false;onPause(OVERRIDE_CONNECTED_CODE);sendAuth();onConnected {
+                        if (!it) setCurState(
+                            SocketState.CONNECTED_ERROR,
+                            Constance.CONNECTING_INTERRUPTED
+                        );onResume(OVERRIDE_CONNECTED_CODE)
+                    }
                 }
-                SocketState.NETWORK_STATE_CHANGE, SocketState.DISCONNECTED, SocketState.CONNECTED_ERROR -> conn(DEFAULT_RECONNECT_TIME)
+                SocketState.NETWORK_STATE_CHANGE, SocketState.DISCONNECTED, SocketState.CONNECTED_ERROR -> conn(
+                    DEFAULT_RECONNECT_TIME
+                )
                 else -> {
                 }
             }
             ChatBase.onSocketStatusChanged(onSocketStateChanged(curSocketState))
             when (value) {
-                SocketState.PING -> printInFile("on socket status change ----- ", "--- $value -- ${nio(pingTime)}")
-                SocketState.PONG -> printInFile("on socket status change ----- ", "--- $value -- ${nio(pongTime)}")
-                SocketState.CONNECTED_ERROR -> printInFile("on socket status change ----- ", "$value  ==> reconnection with error : ${value.case}")
+                SocketState.PING -> printInFile(
+                    "on socket status change ----- ",
+                    "--- $value -- ${nio(pingTime)}"
+                )
+                SocketState.PONG -> printInFile(
+                    "on socket status change ----- ",
+                    "--- $value -- ${nio(pongTime)}"
+                )
+                SocketState.CONNECTED_ERROR -> printInFile(
+                    "on socket status change ----- ",
+                    "$value  ==> reconnection with error : ${value.case}"
+                )
                 SocketState.AUTH_SUCCESS -> NetRecordUtils.recordDisconnectCount()
                 else -> printInFile("on socket status change ----- ", "$value")
             }
@@ -124,7 +148,7 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
     protected abstract val authBuilder: AuthBuilder?
 
     init {
-        lifecycleType = IMLifecycle(IMLifecycle.LifeType.START, -1)
+        lifecycleType = IMLifecycle(LifeType.START, -1)
         conn(0)
     }
 
@@ -133,7 +157,7 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
     /**
      * parse the map data，in work thread ，don`t touch the UI
      * */
-    protected abstract fun parseData(data: InterceptSendToUI): T?
+    protected abstract fun parseData(data: AnalyzingData): T?
 
     /**
      * @return your custom dataBase handler ,when the data parsed in the work thread
@@ -152,9 +176,12 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
 
     private fun conn(delayTime: Long) {
         isAuth = false; authentication = false;connection = false
-        delaySendHandler.removeCallbacks(reconnectRunnable)
+        reconnectRunnable?.let {
+            delaySendHandler.removeCallbacks(it)
+            delaySendHandler.postDelayed(it, delayTime)
+        }
+
         DataStore.put(BaseMsgInfo.closeSocket())
-        delaySendHandler.postDelayed(reconnectRunnable, delayTime)
     }
 
     private fun sendAuth() {
@@ -164,7 +191,13 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
             return
         } else {
             authentication = true
-            TimeOutUtils.putASentMessage(AUTH_TIME_OUT_CALL_ID, hashMapOf(), max(DEFAULT_AUTH_TIME, authTime), false, isIgnoreConnecting = true)
+            TimeOutUtils.putASentMessage(
+                AUTH_TIME_OUT_CALL_ID,
+                hashMapOf(),
+                max(DEFAULT_AUTH_TIME, authTime),
+                false,
+                isIgnoreConnecting = true
+            )
             DataStore.put(BaseMsgInfo.auth(AUTH_TIME_OUT_CALL_ID, authBuilder?.params))
         }
     }
@@ -177,7 +210,7 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
         pongTime = System.currentTimeMillis()
         isReceiving = true
         NetRecordUtils.recordReceivedCount()
-        parseAndPost(InterceptSendToUI(response)) { isReceiving = false }
+        parseAndPost(AnalyzingData(response)) { isReceiving = false }
     }
 
     internal fun setSendingState(state: SendMsgState?, callId: String?, param: Map<String, Any>?, isResend: Boolean) {
@@ -187,11 +220,11 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
             isSending = false
         } else {
             if (state == SendMsgState.SUCCESS || state == SendMsgState.FAIL) TimeOutUtils.remove(callId)
-            parseAndPost(InterceptSendToUI(state, callId, param, isResend)) { isSending = false }
+            parseAndPost(AnalyzingData(state, callId, param, isResend)) { isSending = false }
         }
     }
 
-    private fun parseAndPost(intercept: InterceptSendToUI, onFinish: () -> Unit) {
+    private fun parseAndPost(intercept: AnalyzingData, onFinish: () -> Unit) {
         if (!isShutdown) onUpdateDataBase().init().postReceivedData({ parseData(intercept) }, {
             onFinish()
         })
@@ -240,12 +273,12 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
         }
     }
 
-    internal fun setNetworkState(netWorkState: NetworkInfo.State) {
+    internal fun setNetworkState(netWorkState: NetWorkInfo) {
         MainLooper.post {
             ChatBase.options?.onNetWorkStateChanged(netWorkState)
             when (netWorkState) {
-                NetworkInfo.State.DISCONNECTED, NetworkInfo.State.CONNECTED -> {
-                    if ((netWorkState == NetworkInfo.State.CONNECTED && canConnect() && !curSocketState.isConnected()) || netWorkState == NetworkInfo.State.DISCONNECTED)
+                NetWorkInfo.DISCONNECTED, NetWorkInfo.CONNECTED -> {
+                    if ((netWorkState == NetWorkInfo.CONNECTED && canConnect() && !curSocketState.isConnected()) || netWorkState == NetWorkInfo.DISCONNECTED)
                         setCurState(SocketState.NETWORK_STATE_CHANGE, "on network changed")
                 }
                 else -> {
@@ -267,8 +300,10 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
     }
 
     internal fun nextHeartBeats() {
-        delaySendHandler.removeCallbacks(heartBeatsRunnable)
-        delaySendHandler.postDelayed(heartBeatsRunnable, heartBeatsTime * 1L)
+        heartBeatsRunnable?.let {
+            delaySendHandler.removeCallbacks(it)
+            delaySendHandler.postDelayed(it, heartBeatsTime * 1L)
+        }
     }
 
     /**
@@ -336,12 +371,14 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
 
     fun onPause(code: Int) {
         printInFile("on pause called ", "${overrideType(code)} --- onPause")
-        isPause = true;lifecycleType = IMLifecycle(IMLifecycle.LifeType.PAUSE, code)
+        isPause = true;lifecycleType =
+            IMLifecycle(LifeType.PAUSE, code)
     }
 
     fun onResume(code: Int) {
         printInFile("on resume called ", "${overrideType(code)} --- onResume")
-        isPause = false;lifecycleType = IMLifecycle(IMLifecycle.LifeType.RESUME, code)
+        isPause = false;lifecycleType =
+            IMLifecycle(LifeType.RESUME, code)
     }
 
     internal fun overrideOnConnected(obj: (isContinue: (Boolean) -> Unit) -> Unit) {
@@ -354,12 +391,14 @@ abstract class MessageHubClient<T> : BaseMessageHub() {
 
     internal fun shutDown() {
         onShutDown()
-        lifecycleType = IMLifecycle(IMLifecycle.LifeType.STOP, -1)
+        lifecycleType = IMLifecycle(LifeType.STOP, -1)
         pongTime = 0L
         DataStore.shutDown()
     }
 
-    private fun isHeartbeatsBuilder(response: Map<String, Any>?) = heartbeatsBuilder?.onParsedHeartbeatsReceiver?.invoke(response) == true
+    private fun isHeartbeatsBuilder(response: Map<String, Any>?) =
+        heartbeatsBuilder?.onParsedHeartbeatsReceiver?.invoke(response) == true
+
     private fun authBuilderStatus(response: Map<String, Any>?) = authBuilder?.onParsedAuthReceiver?.invoke(response)
 
     /**

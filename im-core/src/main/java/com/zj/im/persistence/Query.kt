@@ -118,7 +118,12 @@ class Query<T : Any> private constructor(private val cls: Class<T>?) {
         }
     }
 
-    data class QueryInfo(val name: String, val value: Any, val condition: Condition = Condition.Equals, val contentionType: ContentionType? = ContentionType.And)
+    data class QueryInfo(
+        val name: String,
+        val value: Any,
+        val condition: Condition = Condition.Equals,
+        val contentionType: ContentionType? = ContentionType.And
+    )
 
     data class Sort(val by: String, val type: SortType)
 
@@ -144,7 +149,9 @@ class Query<T : Any> private constructor(private val cls: Class<T>?) {
                     val declaredData = declaredField?.get(compareData).toString()
                     val establish = when (it.condition) {
                         Condition.Equals -> declaredData == it.value.toString()
-                        Condition.Like -> declaredData.contains(it.value.toString()) || it.value.toString().contains(declaredData)
+                        Condition.Like -> declaredData.contains(it.value.toString()) || it.value.toString().contains(
+                            declaredData
+                        )
                     }
                     result = when (it.contentionType) {
                         ContentionType.And -> result && establish
@@ -182,13 +189,13 @@ class Query<T : Any> private constructor(private val cls: Class<T>?) {
                 v.acci = "${v.type}$nameN${v.con}".toInt()
             }
         } else return false
-        val endQueryAci = 0L
+        var endQueryAci = 0L
         queryData.forEach {
-            endQueryAci.plus(map[it.name]?.acci ?: 0)
+            endQueryAci += (map[it.name]?.acci ?: 0)
         }
-        val endOtherAci = 0L
+        var endOtherAci = 0L
         other.getQueryData().forEach {
-            endOtherAci.plus(map[it.name]?.acci ?: 0)
+            endOtherAci += (map[it.name]?.acci ?: 0)
         }
         return endQueryAci == endOtherAci
     }

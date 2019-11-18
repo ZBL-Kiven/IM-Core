@@ -19,7 +19,7 @@ import com.zj.im.utils.cast
  *
  * the bridge of server, override and custom your server hub.
  */
-abstract class MessageHubServer(val application: Application) : BaseMessageHub() {
+abstract class MessageHubServer(private val application: Application) : BaseMessageHub() {
 
     private var baseSocketService: BaseSocketService? = null
 

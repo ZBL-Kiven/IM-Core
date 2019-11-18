@@ -1,5 +1,6 @@
-package com.zj.im.utils.log
+package com.zj.im.utils.log.logger
 
+import android.app.Application
 import android.util.Log
 import com.zj.im.BuildConfig
 import com.zj.im.utils.Constance
@@ -15,7 +16,7 @@ import java.lang.NullPointerException
  */
 
 @Suppress("unused")
-sealed class LogCollectionUtils {
+internal sealed class LogCollectionUtils {
 
     companion object {
         const val TAG = "com.zj.LogUtils:println %s"
@@ -26,8 +27,16 @@ sealed class LogCollectionUtils {
     private var debugEnable: () -> Boolean = { BuildConfig.DEBUG }
     private var collectionAble: () -> Boolean = debugEnable
 
-    private fun init(folderName: String, subPath: () -> String, fileName: () -> String, debugEnable: () -> Boolean, collectionAble: (() -> Boolean)?, maxRetain: Long) {
-        fileUtils = FileUtils.init(folderName)
+    private fun init(
+        appContext: Application?,
+        folderName: String,
+        subPath: () -> String,
+        fileName: () -> String,
+        debugEnable: () -> Boolean,
+        collectionAble: (() -> Boolean)?,
+        maxRetain: Long
+    ) {
+        fileUtils = FileUtils.init(appContext, folderName)
         this.subPath = subPath
         this.fileName = fileName
         this.debugEnable = debugEnable
@@ -102,7 +111,7 @@ sealed class LogCollectionUtils {
             fileUtils?.getHomePathFile()?.let { file ->
                 if (!file.isDirectory) return
                 val paths = arrayListOf<String>()
-                file.listFiles().forEach {
+                file.listFiles()?.forEach {
                     if (System.currentTimeMillis() - it.lastModified() > maxRetain) {
                         paths.add(file.path)
                     }
@@ -134,17 +143,17 @@ sealed class LogCollectionUtils {
         /**
          * must call init() before use
          * */
-        fun init(folderName: String, collectionAble: () -> Boolean, logsMaxRetain: Long) {
+        fun init(appContext: Application?, folderName: String, collectionAble: () -> Boolean, logsMaxRetain: Long) {
             if (collectionAble.invoke() && folderName.isEmpty()) {
                 throw NullPointerException(Constance.LOG_FILE_NAME_EMPTY_ERROR)
             }
             this.collectionAble = collectionAble
             this.maxRetain = logsMaxRetain
-            initConfig(overriddenFolderName(folderName))
+            initConfig(appContext, overriddenFolderName(folderName))
         }
 
-        private fun initConfig(folderName: String) {
-            super.init(folderName, subPath, fileName, debugEnable, collectionAble, maxRetain)
+        private fun initConfig(appContext: Application?, folderName: String) {
+            super.init(appContext, folderName, subPath, fileName, debugEnable, collectionAble, maxRetain)
             prepare()
         }
     }

@@ -1,12 +1,11 @@
-package com.zj.im.utils.log
+package com.zj.im.utils.log.logger
 
-import android.os.Environment
+import android.app.Application
 import java.io.*
 import java.lang.IllegalArgumentException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.text.StringBuilder
-
 
 /**
  * Created by ZJJ
@@ -126,7 +125,7 @@ class FileUtils private constructor(private val homePath: String) {
             return false
         }
         flag = true
-        val files = dirFile.listFiles()
+        val files = dirFile.listFiles() ?: return true
         for (i in files.indices) {
             if (files[i].isFile) {
                 flag = delete(files[i].absolutePath)
@@ -152,9 +151,10 @@ class FileUtils private constructor(private val homePath: String) {
      */
     companion object {
 
-        private val DISK = Environment.getExternalStorageDirectory().absolutePath + File.separator
+        private var DISK: String = ""
 
-        fun init(diskPathName: String): FileUtils {
+        fun init(appContext: Application?, diskPathName: String): FileUtils {
+            DISK = appContext?.externalCacheDir?.absolutePath + File.separator
             return FileUtils(DISK + diskPathName)
         }
 
@@ -186,7 +186,7 @@ class FileUtils private constructor(private val homePath: String) {
             var parentPath = path
             if (file.isDirectory) {
                 parentPath += file.name + File.separator
-                val files = file.listFiles()
+                val files = file.listFiles() ?: return
                 for (f in files) {
                     writeZip(f, parentPath, zos)
                 }
@@ -211,7 +211,7 @@ class FileUtils private constructor(private val homePath: String) {
 
         private fun deleteDir(dir: File): Boolean {
             if (dir.isDirectory) {
-                val children = dir.list()
+                val children = dir.list() ?: return true
                 for (i in 0 until children.size) {
                     val success = deleteDir(File(dir, children[i]))
                     if (!success) {

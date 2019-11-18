@@ -2,7 +2,7 @@
 
 package com.zj.im.main
 
-import android.net.NetworkInfo
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
 import com.zj.im.chat.enums.SocketState
 import com.zj.im.chat.exceptions.ChatException
 import com.zj.im.chat.exceptions.ExceptionHandler
@@ -86,7 +86,7 @@ abstract class IMInterface<OUT : Any> {
     /**
      * the network status changed
      * */
-    fun netWorkStateChanged(netWorkState: NetworkInfo.State) {
+    fun netWorkStateChanged(netWorkState: NetWorkInfo) {
         try {
             StateIgnoreFluctuateUtils.sendNetWorkStatus(netWorkState)
         } catch (e: Exception) {

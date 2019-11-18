@@ -1,6 +1,6 @@
 package com.zj.im.chat.utils
 
-import android.net.NetworkInfo
+import com.zj.im.chat.utils.netUtils.NetWorkInfo
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
@@ -66,14 +66,14 @@ internal object StateIgnoreFluctuateUtils {
     private var curSocketState: SocketState = SocketState.INIT
 
     /** on network status changed */
-    fun sendNetWorkStatus(state: NetworkInfo.State) {
+    fun sendNetWorkStatus(state: NetWorkInfo) {
         curNetWorkState = when (state) {
 
-            NetworkInfo.State.DISCONNECTED -> {
+            NetWorkInfo.DISCONNECTED -> {
                 NetWorkState.DISCONNECTED
             }
 
-            NetworkInfo.State.CONNECTED -> {
+            NetWorkInfo.CONNECTED -> {
                 NetWorkState.CONNECTED
             }
             else -> {
@@ -102,7 +102,7 @@ internal object StateIgnoreFluctuateUtils {
     }
 
     class OnSocketStatusChange(key: String, socketState: SocketState) {
-        val value = socketStateObserver?.get(key)?.second
+        private val value = socketStateObserver?.get(key)?.second
 
         private fun postOnRunnable(delayTime: Long, state: SocketState) {
             postOn(state.code, delayTime) { value?.invoke(state) }
@@ -140,7 +140,7 @@ internal object StateIgnoreFluctuateUtils {
 
     class OnNetWorkStatusChange(key: String, private val netWorkState: NetWorkState) {
 
-        val value = netWorkStateObserver?.get(key)?.second
+        private val value = netWorkStateObserver?.get(key)?.second
 
         private fun postOnRunnable(delayTime: Long) {
             postOn(netWorkState.code, delayTime) { value?.invoke(netWorkState) }
@@ -169,7 +169,7 @@ internal object StateIgnoreFluctuateUtils {
         handler.sendMessageDelayed(Message.obtain()?.apply {
             this.what = what
             this.obj = Runnable(run)
-        }, delayTime)
+        } ?: return, delayTime)
     }
 
     private val handler = Handler(Looper.getMainLooper()) {

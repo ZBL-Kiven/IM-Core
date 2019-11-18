@@ -1,6 +1,6 @@
 package com.zj.im.chat.exceptions
 
-import com.zj.im.utils.log.printInFile
+import com.zj.im.utils.log.logger.printInFile
 
 /**
  * created by ZJJ

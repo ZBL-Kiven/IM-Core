@@ -2,6 +2,8 @@ package com.zj.im.utils.log
 
 import com.zj.im.BuildConfig
 import com.zj.im.utils.full
+import com.zj.im.utils.log.logger.DataUtils
+import com.zj.im.utils.log.logger.LogCollectionUtils
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
@@ -14,7 +16,7 @@ internal object NetRecordUtils : LogCollectionUtils.Config() {
         return "$folderName/UsageSituation"
     }
 
-    val path: String; get() = ""
+    private val path: String; get() = ""
     val name: String; get() = "situations"
 
     override val subPath: () -> String
